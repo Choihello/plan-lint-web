@@ -99,7 +99,7 @@ def test_multipart_spool_threshold_covers_file_cap(client):
 
     # 설치된 starlette(1.3.1)에서는 `max_file_size`가 아니라 `spool_max_size`가
     # SpooledTemporaryFile을 디스크로 넘기는 임계값을 제어한다.
-    assert MultiPartParser.spool_max_size > main_mod.settings.max_file_bytes
+    assert MultiPartParser.spool_max_size > main_mod.settings.max_file_bytes + 64 * 1024
 
 
 def test_oversized_content_length_rejected_before_parse(client):
@@ -109,3 +109,12 @@ def test_oversized_content_length_rejected_before_parse(client):
         content=b"",
     )
     assert resp.status_code == 413
+
+
+def test_chunked_body_without_content_length_rejected(client):
+    resp = client.post(
+        "/api/lint",
+        headers={"transfer-encoding": "chunked"},
+        content=iter([b"x" * 1024]),
+    )
+    assert resp.status_code == 411

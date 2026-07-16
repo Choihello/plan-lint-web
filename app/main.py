@@ -16,11 +16,12 @@ from .quota import Quota
 
 settings = load_settings()
 
-# 완전 무저장: 멀티파트 스풀 임계값을 파일 상한보다 크게 잡아
+# 완전 무저장: 멀티파트 스풀 임계값을 미들웨어 허용치 + 여유폭보다 크게 잡아
 # SpooledTemporaryFile이 디스크로 넘어가지 않게 한다.
 # 참고: 설치된 starlette(1.3.1)에서는 `max_file_size`가 아니라
 # `spool_max_size`가 이 임계값을 제어하는 클래스 속성이다 (기본 1MB).
-MultiPartParser.spool_max_size = settings.max_file_bytes + 1024
+# 미들웨어는 max_file_bytes + 64KiB까지 허용하므로, 스풀은 최소 128KiB 이상 여유가 있어야 한다.
+MultiPartParser.spool_max_size = settings.max_file_bytes + 128 * 1024
 
 app = FastAPI(title="plan-lint-web", docs_url=None, redoc_url=None)
 quota = Quota(settings.quota_db_path, settings.per_ip_daily, settings.global_daily, settings.quota_salt)
@@ -40,10 +41,13 @@ def client_ip(request: Request) -> str:
 
 @app.middleware("http")
 async def limit_body_size(request: Request, call_next):
-    cl = request.headers.get("content-length")
-    if cl and cl.isdigit() and int(cl) > settings.max_file_bytes + 64 * 1024:  # 멀티파트 오버헤드 여유
-        mb = settings.max_file_bytes // (1024 * 1024)
-        return JSONResponse(status_code=413, content={"error": f"파일이 너무 커요. {mb}MB 이하로 올려주세요."})
+    if request.method == "POST" and request.url.path == "/api/lint":
+        cl = request.headers.get("content-length")
+        if cl is None or not cl.isdigit():
+            return JSONResponse(status_code=411, content={"error": "요청 크기를 확인할 수 없어요. 일반 브라우저나 표준 HTTP 클라이언트로 시도해주세요."})
+        if int(cl) > settings.max_file_bytes + 64 * 1024:
+            mb = settings.max_file_bytes // (1024 * 1024)
+            return JSONResponse(status_code=413, content={"error": f"파일이 너무 커요. {mb}MB 이하로 올려주세요."})
     return await call_next(request)
 
 
