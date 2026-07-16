@@ -4,3 +4,7 @@ tests
 docs
 __pycache__
 *.sqlite3
+.superpowers
+.pytest_cache
+.github
+.claude
