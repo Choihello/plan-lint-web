@@ -3,6 +3,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
+# 로컬 실행 시 repo 루트의 .env를 읽는다 (없으면 조용히 무시).
+# 이미 설정된 환경변수가 우선 — 배포 환경(Fly secrets)을 덮어쓰지 않는다.
+load_dotenv()
+
 
 @dataclass(frozen=True)
 class Settings:
