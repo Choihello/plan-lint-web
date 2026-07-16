@@ -5,6 +5,7 @@ const CHECKER_LABELS = {
   "logic-gap": "논리 연결이 끊겨요",
   "unsupported-claim": "근거가 없는 주장이에요",
   "internal-contradiction": "문서 안에서 말이 엇갈려요",
+  "vague-goal": "목표가 구체적이지 않아요",
 };
 const SEV_LABELS = { critical: "치명", warning: "주의", info: "참고" };
 const SKIP_MESSAGES = {
