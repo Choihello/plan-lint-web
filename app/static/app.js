@@ -87,6 +87,12 @@ function switchTab(isFile) {
 // --- 파일 선택/드롭 ---
 const dz = $("dropzone");
 dz.onclick = () => $("file-input").click();
+dz.onkeydown = (e) => {  // 키보드 사용자도 Enter/Space로 파일 선택 가능 (a11y)
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    $("file-input").click();
+  }
+};
 $("file-input").onchange = (e) => pickFile(e.target.files[0]);
 dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("dragover"); };
 dz.ondragleave = () => dz.classList.remove("dragover");
