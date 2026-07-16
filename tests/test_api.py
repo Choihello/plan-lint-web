@@ -19,6 +19,51 @@ def client(tmp_path, monkeypatch):
     return TestClient(main_mod.app)
 
 
+@pytest.fixture()
+def admin_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLW_QUOTA_DB", str(tmp_path / "q.sqlite3"))
+    monkeypatch.setenv("PLW_ADMIN_TOKEN", "test-admin-token")
+    import importlib
+
+    importlib.reload(main_mod)
+    monkeypatch.setattr(main_mod, "make_client", lambda *a, **k: FakeClient())
+    return TestClient(main_mod.app)
+
+
+ADMIN = {"x-admin-token": "test-admin-token"}
+
+
+def test_admin_bypasses_quota(admin_client):
+    # per_ip 기본 1회인데 관리자는 몇 번을 돌려도 LLM이 돈다
+    for _ in range(3):
+        resp = admin_client.post(
+            "/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers=ADMIN
+        )
+        assert resp.json()["meta"]["llm_ran"] is True
+        assert resp.json()["meta"]["llm_skipped_reason"] is None
+    # 관리자 사용이 일반 쿼터를 소모하지 않음
+    assert admin_client.get("/api/quota").json()["remaining_today"] == 1
+
+
+def test_admin_quota_endpoint_unlimited(admin_client):
+    r = admin_client.get("/api/quota", headers=ADMIN)
+    assert r.json()["remaining_today"] == -1  # 프론트가 '무제한'으로 표시
+
+
+def test_wrong_admin_token_uses_normal_quota(admin_client):
+    bad = {"x-admin-token": "wrong"}
+    admin_client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers=bad)
+    resp = admin_client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers=bad)
+    assert resp.json()["meta"]["llm_skipped_reason"] == "quota_ip"
+
+
+def test_admin_header_ignored_when_token_unconfigured(client):
+    # 서버에 토큰이 설정 안 됐으면 (기본 "") 어떤 헤더로도 관리자 불가
+    client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers={"x-admin-token": ""})
+    resp = client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers={"x-admin-token": ""})
+    assert resp.json()["meta"]["llm_skipped_reason"] == "quota_ip"
+
+
 def test_text_lint_rules_and_llm(client):
     resp = client.post("/api/lint", data={"text": "# 개요\n\n한 줄.", "use_llm": "true"})
     assert resp.status_code == 200

@@ -30,6 +30,7 @@
 | PLW_LLM_CONCURRENCY | 3 | 동시 LLM 검사 상한 |
 | PLW_QUOTA_DB | quota.sqlite3 | 쿼터 DB 경로 |
 | PLW_QUOTA_SALT | (내장) | IP 해시 솔트 — 운영 시 변경 권장 |
+| PLW_ADMIN_TOKEN | (없음) | 관리자 무제한 토큰 — `/?admin=<토큰>`으로 접속하면 쿼터 없이 AI 검사. 비우면 비활성 |
 | PLW_TRUST_PROXY_HEADERS | 1 | 프록시 IP 헤더 신뢰 여부 — 신뢰 프록시(Fly 등) 뒤가 아니면 0으로 |
 
 ## Docker 빌드·배포

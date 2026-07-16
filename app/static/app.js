@@ -17,6 +17,22 @@ const $ = (id) => document.getElementById(id);
 let selectedFile = null;
 let lastResult = null;
 
+// --- 관리자 모드: ?admin=<토큰>으로 한 번 접속하면 브라우저가 기억 ---
+const ADMIN_STORAGE_KEY = "plw_admin_token";
+(() => {
+  const params = new URLSearchParams(location.search);
+  const t = params.get("admin");
+  if (t !== null) {
+    if (t) localStorage.setItem(ADMIN_STORAGE_KEY, t);
+    else localStorage.removeItem(ADMIN_STORAGE_KEY); // ?admin= (빈 값) → 해제
+    history.replaceState(null, "", location.pathname); // 주소창에서 토큰 제거
+  }
+})();
+function adminHeaders() {
+  const t = localStorage.getItem(ADMIN_STORAGE_KEY);
+  return t ? { "x-admin-token": t } : {};
+}
+
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -91,8 +107,9 @@ function hideError() { $("error-box").hidden = true; }
 // --- 쿼터 표시 ---
 async function refreshQuota() {
   try {
-    const r = await (await fetch("/api/quota")).json();
-    $("quota-info").textContent = `(오늘 남은 횟수: ${r.remaining_today}회)`;
+    const r = await (await fetch("/api/quota", { headers: adminHeaders() })).json();
+    $("quota-info").textContent =
+      r.remaining_today < 0 ? "(무제한 — 관리자 모드)" : `(오늘 남은 횟수: ${r.remaining_today}회)`;
   } catch { /* 표시는 부가 기능 — 실패해도 무시 */ }
 }
 refreshQuota();
@@ -115,7 +132,7 @@ $("submit").onclick = async () => {
   $("loading").hidden = false;
   $("submit").disabled = true;
   try {
-    const resp = await fetch("/api/lint", { method: "POST", body: fd });
+    const resp = await fetch("/api/lint", { method: "POST", body: fd, headers: adminHeaders() });
     const body = await resp.json();
     if (!resp.ok) {
       showError(body.error || "진단에 실패했어요. 잠시 후 다시 시도해주세요.");

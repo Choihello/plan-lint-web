@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import hmac
 import threading
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -32,6 +33,15 @@ RULES_TIMEOUT = 30  # 룰만 돌 때의 안전 타임아웃(초)
 CONVERT_TIMEOUT = 30  # 파일 변환 안전 타임아웃(초)
 
 
+def is_admin(request: Request) -> bool:
+    """운영자 무제한 통로 — PLW_ADMIN_TOKEN이 설정돼 있고 헤더가 일치할 때만."""
+    token = settings.admin_token
+    if not token:
+        return False
+    supplied = request.headers.get("x-admin-token", "")
+    return hmac.compare_digest(supplied, token)
+
+
 def client_ip(request: Request) -> str:
     if settings.trust_proxy_headers:
         for header in ("fly-client-ip", "x-forwarded-for"):
@@ -55,6 +65,8 @@ async def limit_body_size(request: Request, call_next):
 
 @app.get("/api/quota")
 def get_quota(request: Request):
+    if is_admin(request):
+        return {"remaining_today": -1}  # 프론트가 '무제한(관리자)'로 표시
     return {"remaining_today": quota.remaining(client_ip(request))}
 
 
@@ -96,15 +108,20 @@ async def lint(
         return JSONResponse(status_code=422, content={"error": "파일에서 텍스트를 찾지 못했어요. 텍스트 붙여넣기로 시도해주세요."})
 
     ip = client_ip(request)
+    admin = is_admin(request)
     llm_client = None
     skipped_reason: str | None = None
+    consumed = False  # 쿼터를 실제로 소모했을 때만 환불 (관리자는 소모 자체가 없음)
     if use_llm:
-        skipped_reason = quota.try_consume(ip)
+        if not admin:
+            skipped_reason = quota.try_consume(ip)
+            consumed = skipped_reason is None
         if skipped_reason is None:
             try:
                 llm_client = make_client()
             except LLMUnavailable:
-                quota.refund(ip)
+                if consumed:
+                    quota.refund(ip)
                 skipped_reason = "llm_error"
 
     def work():
@@ -125,14 +142,16 @@ async def lint(
         outcome = future.result(timeout=timeout)
     except concurrent.futures.TimeoutError:
         if llm_client is not None:
-            quota.refund(ip)
+            if consumed:
+                quota.refund(ip)
             skipped_reason = "llm_error"
             outcome = run_lint(source)  # 룰만이라도 반환
         else:
             return JSONResponse(status_code=500, content={"error": "검사가 예상보다 오래 걸려요. 잠시 후 다시 시도해주세요."})
 
     if outcome.llm_error:
-        quota.refund(ip)
+        if consumed:
+            quota.refund(ip)
         skipped_reason = "llm_error"
 
     return {
@@ -141,7 +160,7 @@ async def lint(
         "meta": {
             "llm_ran": outcome.llm_ran,
             "llm_skipped_reason": skipped_reason,
-            "remaining_today": quota.remaining(ip),
+            "remaining_today": -1 if admin else quota.remaining(ip),
             "conversion_warnings": warnings,
         },
     }

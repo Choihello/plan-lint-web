@@ -21,6 +21,7 @@ class Settings:
     quota_db_path: str
     quota_salt: str
     trust_proxy_headers: bool
+    admin_token: str  # 비어 있으면 관리자 모드 비활성
 
 
 def load_settings() -> Settings:
@@ -34,4 +35,5 @@ def load_settings() -> Settings:
         quota_db_path=os.environ.get("PLW_QUOTA_DB", "quota.sqlite3"),
         quota_salt=os.environ.get("PLW_QUOTA_SALT", "plan-lint-web-v1"),
         trust_proxy_headers=os.environ.get("PLW_TRUST_PROXY_HEADERS", "1") == "1",
+        admin_token=os.environ.get("PLW_ADMIN_TOKEN", ""),
     )
