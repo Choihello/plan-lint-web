@@ -32,12 +32,14 @@ def convert_docx(data: bytes) -> ConversionResult:
             lines.append(text)
 
     warnings: list[str] = []
-    if d.tables:
-        for table in d.tables:
-            for row in table.rows:
-                cells = [c.text.strip() for c in row.cells if c.text.strip()]
-                if cells:
-                    lines.append(" | ".join(cells))
+    table_flattened = False
+    for table in d.tables:
+        for row in table.rows:
+            cells = [c.text.strip() for c in row.cells]
+            if any(cells):
+                lines.append(" | ".join(cells))
+                table_flattened = True
+    if table_flattened:
         warnings.append("표가 텍스트로 평탄화됐어요 — 표 안 수치 검사는 부정확할 수 있어요")
 
     if not lines:

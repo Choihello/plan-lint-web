@@ -37,3 +37,35 @@ def test_empty_docx_rejected():
     d.save(buf)
     with pytest.raises(ConversionError):
         convert_docx(buf.getvalue())
+
+
+def test_no_heading_styles_falls_back_to_promotion():
+    d = docx_lib.Document()
+    d.add_paragraph("1. 사업 개요")
+    d.add_paragraph("본문입니다.")
+    buf = io.BytesIO()
+    d.save(buf)
+    r = convert_docx(buf.getvalue())
+    assert "## 1. 사업 개요" in r.text
+
+
+def test_empty_cell_keeps_column_position():
+    d = docx_lib.Document()
+    d.add_paragraph("본문")
+    t = d.add_table(rows=1, cols=3)
+    t.rows[0].cells[0].text = "항목"
+    t.rows[0].cells[2].text = "1억원"
+    buf = io.BytesIO()
+    d.save(buf)
+    r = convert_docx(buf.getvalue())
+    assert "항목 |  | 1억원" in r.text
+
+
+def test_whitespace_only_table_no_warning():
+    d = docx_lib.Document()
+    d.add_paragraph("본문")
+    d.add_table(rows=1, cols=2)  # 셀 전부 빈 표
+    buf = io.BytesIO()
+    d.save(buf)
+    r = convert_docx(buf.getvalue())
+    assert not any("표" in w for w in r.warnings)
