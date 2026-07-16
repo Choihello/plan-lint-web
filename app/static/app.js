@@ -21,6 +21,41 @@ function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// 원문에서 인용 위치를 오프셋으로 먼저 수집한 뒤 한 번에 조립한다.
+// 진행 중인 HTML 문자열에 재매칭하면 겹치는 인용이나 동일 문자열 인용이
+// 조용히 유실되거나 중첩 mark가 생기기 때문 (원문 기준 매칭이 정답).
+function highlightSource(text, findings) {
+  const ranges = [];
+  const taken = [];
+  findings.forEach((f, idx) => {
+    for (const q of f.quotes || []) {
+      let from = 0;
+      while (true) {
+        const start = text.indexOf(q, from);
+        if (start === -1) break; // 매칭 실패 시 카드만 표시 (스펙 §7)
+        const end = start + q.length;
+        const overlaps = taken.some(([s, e]) => start < e && end > s);
+        if (!overlaps) {
+          ranges.push({ start, end, sev: f.severity, idx });
+          taken.push([start, end]);
+          break;
+        }
+        from = start + 1; // 이미 하이라이트된 구간과 겹치면 다음 등장 위치 시도
+      }
+    }
+  });
+  ranges.sort((a, b) => a.start - b.start);
+  let out = "";
+  let pos = 0;
+  for (const r of ranges) {
+    out += esc(text.slice(pos, r.start));
+    out += `<mark class="${esc(r.sev)}" data-idx="${r.idx}">` + esc(text.slice(r.start, r.end)) + "</mark>";
+    pos = r.end;
+  }
+  out += esc(text.slice(pos));
+  return out;
+}
+
 // --- 탭 ---
 $("tab-file").onclick = () => switchTab(true);
 $("tab-text").onclick = () => switchTab(false);
@@ -115,23 +150,14 @@ function renderReport(body) {
   $("summary").innerHTML = body.findings.length === 0
     ? '<span class="badge clean">발견된 결함이 없어요</span>'
     : Object.entries(counts).filter(([, n]) => n > 0)
-        .map(([sev, n]) => `<span class="badge ${sev}">${SEV_LABELS[sev]} ${n}</span>`).join("");
+        .map(([sev, n]) => `<span class="badge ${esc(sev)}">${SEV_LABELS[sev]} ${n}</span>`).join("");
 
   // 원문 + 하이라이트: quotes를 문서 등장 순으로 <mark> 치환 (엔진이 인용 실존을 보증)
-  let html = esc(body.converted_text);
-  body.findings.forEach((f, idx) => {
-    for (const q of f.quotes || []) {
-      const eq = esc(q);
-      if (html.includes(eq)) {
-        html = html.replace(eq, `<mark class="${f.severity}" data-idx="${idx}">${eq}</mark>`);
-      } // 매칭 실패 시 카드만 표시 (스펙 §7)
-    }
-  });
-  $("source-pane").innerHTML = html;
+  $("source-pane").innerHTML = highlightSource(body.converted_text, body.findings);
 
   // 결함 카드
   $("cards-pane").innerHTML = body.findings.map((f, idx) => `
-    <div class="card ${f.severity}" data-idx="${idx}">
+    <div class="card ${esc(f.severity)}" data-idx="${idx}">
       <span class="sev">${SEV_LABELS[f.severity]}</span>
       <h3>${esc(CHECKER_LABELS[f.checker] || f.checker)}</h3>
       <p>${esc(f.message)}</p>
