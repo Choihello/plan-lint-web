@@ -9,6 +9,7 @@ def test_defaults():
     assert s.max_text_chars == 100_000
     assert s.llm_timeout_seconds == 60
     assert s.llm_concurrency == 3
+    assert s.trust_proxy_headers is True
 
 
 def test_env_override(monkeypatch):
@@ -17,3 +18,9 @@ def test_env_override(monkeypatch):
     s = load_settings()
     assert s.per_ip_daily == 5
     assert s.global_daily == 999
+
+
+def test_trust_proxy_headers_override(monkeypatch):
+    monkeypatch.setenv("PLW_TRUST_PROXY_HEADERS", "0")
+    s = load_settings()
+    assert s.trust_proxy_headers is False

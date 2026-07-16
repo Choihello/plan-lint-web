@@ -3,6 +3,9 @@ primary_region = "nrt"
 
 [build]
 
+[env]
+  PLW_QUOTA_DB = "/data/quota.sqlite3"
+
 [http_service]
   internal_port = 8080
   force_https = true
@@ -13,3 +16,7 @@ primary_region = "nrt"
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"
+
+[mounts]
+  source = "plan_lint_data"
+  destination = "/data"

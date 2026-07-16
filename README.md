@@ -30,6 +30,7 @@
 | PLW_LLM_CONCURRENCY | 3 | 동시 LLM 검사 상한 |
 | PLW_QUOTA_DB | quota.sqlite3 | 쿼터 DB 경로 |
 | PLW_QUOTA_SALT | (내장) | IP 해시 솔트 — 운영 시 변경 권장 |
+| PLW_TRUST_PROXY_HEADERS | 1 | 프록시 IP 헤더 신뢰 여부 — 신뢰 프록시(Fly 등) 뒤가 아니면 0으로 |
 
 ## Docker 빌드·배포
 
@@ -46,6 +47,11 @@ Docker 미설치 환경이므로 로컬 빌드 검증은 배포 시점으로 미
 설정 파일(`fly.toml`)이 준비됐으므로 사용자가 다음 명령으로 배포:
 
     fly launch --copy-config
+    fly volumes create plan_lint_data --size 1  # 첫 배포 전 필수 — 쿼터 DB 영속화용
     fly secrets set ANTHROPIC_API_KEY=<your-key>
     fly deploy
     python scripts/smoke.py https://plan-lint-web.fly.dev
+
+쿼터 DB(`/data/quota.sqlite3`)는 볼륨에 저장되며 머신별로 분리된다.
+따라서 `fly scale count 1`로 머신 수를 1대로 고정하는 것이 전제 조건이다
+(스케일아웃 시 IP당·전역 일일 상한이 머신 수만큼 사실상 늘어난다).

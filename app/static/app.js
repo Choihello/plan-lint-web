@@ -18,7 +18,8 @@ let selectedFile = null;
 let lastResult = null;
 
 function esc(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 // 원문에서 인용 위치를 오프셋으로 먼저 수집한 뒤 한 번에 조립한다.
@@ -152,7 +153,7 @@ function renderReport(body) {
     : Object.entries(counts).filter(([, n]) => n > 0)
         .map(([sev, n]) => `<span class="badge ${esc(sev)}">${SEV_LABELS[sev]} ${n}</span>`).join("");
 
-  // 원문 + 하이라이트: quotes를 문서 등장 순으로 <mark> 치환 (엔진이 인용 실존을 보증)
+  // 원문 + 하이라이트: highlightSource 참고 (파일 상단 설명 주석)
   $("source-pane").innerHTML = highlightSource(body.converted_text, body.findings);
 
   // 결함 카드

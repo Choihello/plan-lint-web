@@ -13,6 +13,8 @@ def convert_pdf(data: bytes) -> ConversionResult:
         raise ConversionError("PDF 파일을 읽지 못했어요. 텍스트 붙여넣기로 시도해주세요.") from e
     try:
         pages = [page.get_text().strip() for page in doc]
+    except Exception as e:
+        raise ConversionError("PDF 내용을 읽는 중 문제가 생겼어요. 텍스트 붙여넣기로 시도해주세요.") from e
     finally:
         doc.close()
     body = "\n\n".join(p for p in pages if p)
