@@ -1,1 +1,61 @@
-<!doctype html><title>plan-lint</title>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plan-lint — 사업계획서 사전 진단</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>plan-lint</h1>
+  <p class="tagline">사업계획서를 제출하기 전에, 심사자가 볼 결함을 미리 확인하세요</p>
+</header>
+
+<main id="input-view">
+  <div class="tabs">
+    <button id="tab-file" class="tab active" type="button">파일 올리기</button>
+    <button id="tab-text" class="tab" type="button">텍스트 붙여넣기</button>
+  </div>
+
+  <div id="panel-file" class="panel">
+    <div id="dropzone" tabindex="0">
+      <p><strong>.hwpx / .pdf / .docx</strong> 파일을 끌어다 놓거나 클릭해서 선택하세요</p>
+      <p class="hint">구형 .hwp는 한글에서 "다른 이름으로 저장 → HWPX"로 저장한 뒤 올려주세요</p>
+      <input type="file" id="file-input" accept=".hwpx,.pdf,.docx" hidden>
+    </div>
+    <p id="file-name" class="file-name"></p>
+  </div>
+
+  <div id="panel-text" class="panel" hidden>
+    <textarea id="text-input" rows="14" placeholder="사업계획서 본문을 붙여넣으세요"></textarea>
+  </div>
+
+  <label class="llm-toggle">
+    <input type="checkbox" id="use-llm" checked>
+    AI 정밀 검사 (논리 단절·근거 없는 주장·내부 모순)
+    <span id="quota-info" class="quota"></span>
+  </label>
+
+  <button id="submit" type="button" class="primary">진단 시작</button>
+  <p id="error-box" class="error" hidden></p>
+  <p class="privacy">🔒 업로드한 문서는 서버에 저장되지 않으며, 진단 후 즉시 폐기됩니다</p>
+</main>
+
+<main id="report-view" hidden>
+  <div id="banner" class="banner" hidden></div>
+  <div id="summary" class="summary"></div>
+  <div class="columns">
+    <section class="col"><h2>원문</h2><div id="source-pane" class="source"></div></section>
+    <section class="col"><h2>진단 결과</h2><div id="cards-pane"></div></section>
+  </div>
+  <div class="actions">
+    <button id="copy-btn" type="button">결과 복사</button>
+    <button id="again-btn" type="button">다시 진단하기</button>
+  </div>
+</main>
+
+<div id="loading" hidden><p>진단 중이에요… 문서 길이에 따라 최대 1분쯤 걸릴 수 있어요</p></div>
+<script src="/app.js"></script>
+</body>
+</html>
