@@ -6,7 +6,7 @@ import re
 import docx as docx_lib
 
 from . import ConversionError, ConversionResult, check_zip_safety
-from .headings import promote_headings
+from .headings import structure_headings
 
 _HEADING_STYLE = re.compile(r"^(?:Heading|제목)\s*(\d)", re.IGNORECASE)
 
@@ -47,6 +47,6 @@ def convert_docx(data: bytes) -> ConversionResult:
 
     text = "\n\n".join(lines)
     if not has_heading:
-        text, extra = promote_headings(text)
+        text, extra = structure_headings(text)
         warnings.extend(extra)
     return ConversionResult(text=text, warnings=warnings)

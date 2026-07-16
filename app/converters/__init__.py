@@ -4,7 +4,7 @@ import io
 import zipfile
 from dataclasses import dataclass, field
 
-from .headings import promote_headings
+from .headings import structure_headings
 
 _MAX_UNZIPPED = 50 * 1024 * 1024  # ZIP 폭탄 방어: 해제 합계 상한
 _ZIP_MAGIC = b"PK\x03\x04"
@@ -39,7 +39,7 @@ def check_zip_safety(data: bytes) -> None:
 def normalize_pasted(text: str) -> ConversionResult:
     if any(line.lstrip().startswith("#") for line in text.splitlines()):
         return ConversionResult(text=text)  # 이미 마크다운이면 그대로
-    promoted, warnings = promote_headings(text)
+    promoted, warnings = structure_headings(text)
     return ConversionResult(text=promoted, warnings=warnings)
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pymupdf
 
 from . import ConversionError, ConversionResult
-from .headings import promote_headings
+from .headings import structure_headings
 
 
 def convert_pdf(data: bytes) -> ConversionResult:
@@ -22,6 +22,6 @@ def convert_pdf(data: bytes) -> ConversionResult:
         raise ConversionError(
             "PDF에서 텍스트를 찾지 못했어요 (스캔본일 수 있어요). 본문을 복사해 텍스트 붙여넣기로 시도해주세요."
         )
-    text, warnings = promote_headings(body)
+    text, warnings = structure_headings(body)
     warnings.append("PDF 레이아웃에 따라 줄바꿈·표가 부정확할 수 있어요")
     return ConversionResult(text=text, warnings=warnings)

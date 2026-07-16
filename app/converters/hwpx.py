@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from . import ConversionError, ConversionResult, check_zip_safety
-from .headings import promote_headings
+from .headings import structure_headings
 
 
 def _localname(tag: str) -> str:
@@ -54,7 +54,7 @@ def convert_hwpx(data: bytes) -> ConversionResult:
                     paragraphs.append(text)
     if not paragraphs:
         raise ConversionError("파일에서 텍스트를 찾지 못했어요. 텍스트 붙여넣기로 시도해주세요.")
-    text, warnings = promote_headings("\n\n".join(paragraphs))
+    text, warnings = structure_headings("\n\n".join(paragraphs))
     if has_table:
         warnings.append("표가 텍스트로 평탄화됐어요 — 표 안 수치 검사는 부정확할 수 있어요")
     return ConversionResult(text=text, warnings=warnings)
