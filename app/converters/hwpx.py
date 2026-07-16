@@ -12,12 +12,23 @@ def _localname(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+def _section_index(name: str) -> int:
+    stem = name.rsplit("section", 1)[-1].rsplit(".", 1)[0]
+    try:
+        return int(stem)
+    except ValueError:
+        return 0
+
+
 def convert_hwpx(data: bytes) -> ConversionResult:
     check_zip_safety(data)
     paragraphs: list[str] = []
     has_table = False
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        sections = sorted(n for n in z.namelist() if n.startswith("Contents/section") and n.endswith(".xml"))
+        sections = sorted(
+            (n for n in z.namelist() if n.startswith("Contents/section") and n.endswith(".xml")),
+            key=_section_index,
+        )
         for name in sections:
             try:
                 root = ET.fromstring(z.read(name))

@@ -41,3 +41,24 @@ def test_empty_hwpx_rejected():
         z.writestr("Contents/section0.xml", "<sec/>")
     with pytest.raises(ConversionError):
         convert_hwpx(buf.getvalue())
+
+
+def test_section_files_sorted_numerically():
+    """Regression test: section10.xml should come after section2.xml, not before."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("mimetype", "application/hwp+zip")
+        # Create 11 section files with numeric indices
+        for i in range(11):
+            section_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section"
+        xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph">
+  <hp:p><hp:run><hp:t>섹션{i} 본문</hp:t></hp:run></hp:p>
+</hs:sec>"""
+            z.writestr(f"Contents/section{i}.xml", section_xml)
+
+    r = convert_hwpx(buf.getvalue())
+    # Verify that section2 appears before section10 in the output
+    idx_2 = r.text.index("섹션2 본문")
+    idx_10 = r.text.index("섹션10 본문")
+    assert idx_2 < idx_10, f"섹션2({idx_2}) should come before 섹션10({idx_10})"
