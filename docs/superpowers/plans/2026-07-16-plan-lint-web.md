@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - 저장소 루트: `C:/Users/zerat/OneDrive/바탕 화면/Teddy/plan-lint-web` (git 초기화 완료, main 브랜치). 모든 경로는 이 루트 기준.
-- 엔진은 `planlint @ git+https://github.com/Choihello/plan-lint@main`으로 설치. **엔진 코드 복사·수정 금지.**
+- 엔진은 `plan-lint @ git+https://github.com/Choihello/plan-lint@main`으로 설치 (배포 이름 plan-lint / import 이름 planlint). **엔진 코드 복사·수정 금지.**
 - 프로파일은 `psst-standard` 고정 (v1).
 - 쿼터 기본값: **IP당 하루 1회, 전역 하루 50회** (LLM 검사만; 룰 검사는 무제한).
 - 크기 상한: 파일 5MB, 변환 후 텍스트 100,000자. LLM 타임아웃 60초, 동시 LLM 세마포어 3.
