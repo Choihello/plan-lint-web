@@ -100,15 +100,33 @@
 </main>
 
 <main id="report-view" hidden>
+  <div class="report-head">
+    <div class="report-title">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M9 13.5l2.2 2.2L15.5 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <h1>진단 리포트</h1>
+        <p id="report-meta" class="report-meta"></p>
+      </div>
+    </div>
+    <div id="summary" class="summary"></div>
+  </div>
   <div id="banner" class="banner" hidden></div>
-  <div id="summary" class="summary"></div>
   <div class="columns">
     <section class="col"><h2>원문</h2><div id="source-pane" class="source"></div></section>
     <section class="col"><h2>진단 결과</h2><div id="cards-pane"></div></section>
   </div>
   <div class="actions">
-    <button id="copy-btn" type="button">결과 복사</button>
-    <button id="again-btn" type="button">다시 진단하기</button>
+    <button id="copy-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="12" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V5a2 2 0 0 1 2-2h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      결과 복사
+    </button>
+    <button id="again-btn" type="button">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10a8 8 0 0 1 14-4.5M20 14a8 8 0 0 1-14 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 3v3.5h-3.5M6 21v-3.5h3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      다시 진단하기
+    </button>
   </div>
 </main>
 

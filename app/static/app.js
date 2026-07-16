@@ -162,32 +162,48 @@ function renderReport(body) {
   $("input-view").hidden = true;
   $("report-view").hidden = false;
 
+  $("report-meta").textContent = body.meta.llm_ran
+    ? "기본 검사 + AI 정밀 검사 완료 · 보강 제안 포함"
+    : "기본 검사 완료";
+
   const banner = $("banner");
   const notes = [];
   if (body.meta.llm_skipped_reason) notes.push(SKIP_MESSAGES[body.meta.llm_skipped_reason]);
   for (const w of body.meta.conversion_warnings) notes.push(w);
   banner.hidden = notes.length === 0;
-  banner.textContent = notes.join(" · ");
+  banner.innerHTML = notes.length
+    ? `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.2" r="1" fill="currentColor"/></svg><span>${esc(notes.join(" · "))}</span>`
+    : "";
 
   // 요약 배지
   const counts = { critical: 0, warning: 0, info: 0 };
   for (const f of body.findings) counts[f.severity] = (counts[f.severity] || 0) + 1;
   $("summary").innerHTML = body.findings.length === 0
-    ? '<span class="badge clean">발견된 결함이 없어요</span>'
+    ? '<span class="badge clean">발견된 결함 없음</span>'
     : Object.entries(counts).filter(([, n]) => n > 0)
         .map(([sev, n]) => `<span class="badge ${esc(sev)}">${SEV_LABELS[sev]} ${n}</span>`).join("");
 
   // 원문 + 하이라이트: highlightSource 참고 (파일 상단 설명 주석)
   $("source-pane").innerHTML = highlightSource(body.converted_text, body.findings);
 
-  // 결함 카드
-  $("cards-pane").innerHTML = body.findings.map((f, idx) => `
+  // 결함 카드 (0건이면 클린 상태 패널)
+  const SUGGESTION_ICON =
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 18h6M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.7.5 1.1 1.3 1.2 2.1h4.4c.1-.8.5-1.6 1.2-2.1A6 6 0 0 0 12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+  $("cards-pane").innerHTML = body.findings.length === 0
+    ? `<div class="clean-state">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>이번 검사에서 결함을 찾지 못했어요</h3>
+        <p>검사 항목 기준으로 문제가 없다는 뜻이며, 계획서의 완성도를 보장하는 평가는 아니에요.</p>
+      </div>`
+    : body.findings.map((f, idx) => `
     <div class="card ${esc(f.severity)}" data-idx="${idx}">
-      <span class="sev">${SEV_LABELS[f.severity]}</span>
-      <h3>${esc(CHECKER_LABELS[f.checker] || f.checker)}</h3>
+      <div class="card-head">
+        <span class="sev">${SEV_LABELS[f.severity]}</span>
+        <h3>${esc(CHECKER_LABELS[f.checker] || f.checker)}</h3>
+      </div>
       <p>${esc(f.message)}</p>
       ${(f.quotes || []).map((q) => `<blockquote>${esc(q)}</blockquote>`).join("")}
-      ${f.suggestion ? `<p class="suggestion">💡 ${esc(f.suggestion)}</p>` : ""}
+      ${f.suggestion ? `<div class="suggestion"><span class="suggestion-label">${SUGGESTION_ICON}보강 제안</span>${esc(f.suggestion)}</div>` : ""}
     </div>`).join("");
 
   // 카드 ↔ 하이라이트 상호 스크롤
@@ -219,8 +235,10 @@ $("copy-btn").onclick = () => {
     lines.push("");
   }
   navigator.clipboard.writeText(lines.join("\n"));
-  $("copy-btn").textContent = "복사됐어요!";
-  setTimeout(() => ($("copy-btn").textContent = "결과 복사"), 1500);
+  const btn = $("copy-btn");
+  const original = btn.innerHTML; // SVG 아이콘 보존을 위해 innerHTML로 복원
+  btn.textContent = "복사됐어요!";
+  setTimeout(() => (btn.innerHTML = original), 1500);
 };
 
 $("again-btn").onclick = () => {
