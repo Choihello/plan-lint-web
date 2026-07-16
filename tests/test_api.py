@@ -86,3 +86,26 @@ def test_conversion_error_maps_to_422(client):
 
 def test_quota_endpoint(client):
     assert client.get("/api/quota").json() == {"remaining_today": 1}
+
+
+def test_whitespace_only_text_gets_specific_message(client):
+    resp = client.post("/api/lint", data={"text": "   "})
+    assert resp.status_code == 422
+    assert resp.json()["error"] == "붙여넣은 내용이 비어 있어요. 본문을 붙여넣어주세요."
+
+
+def test_multipart_spool_threshold_covers_file_cap(client):
+    from starlette.formparsers import MultiPartParser
+
+    # 설치된 starlette(1.3.1)에서는 `max_file_size`가 아니라 `spool_max_size`가
+    # SpooledTemporaryFile을 디스크로 넘기는 임계값을 제어한다.
+    assert MultiPartParser.spool_max_size > main_mod.settings.max_file_bytes
+
+
+def test_oversized_content_length_rejected_before_parse(client):
+    resp = client.post(
+        "/api/lint",
+        headers={"content-length": str(200 * 1024 * 1024)},
+        content=b"",
+    )
+    assert resp.status_code == 413
