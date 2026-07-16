@@ -4,4 +4,5 @@ python-multipart>=0.0.9
 pymupdf>=1.24
 python-docx>=1.1
 # 배포 이름은 plan-lint, import 이름은 planlint (상류 pyproject.toml의 name 기준)
-plan-lint @ git+https://github.com/Choihello/plan-lint@main
+# [openai] extra: OPENAI_API_KEY로 LLM 검사 (make_client auto가 키 보고 선택)
+plan-lint[openai] @ git+https://github.com/Choihello/plan-lint@main

@@ -11,7 +11,7 @@
 
     pip install -r requirements-dev.txt
     uvicorn app.main:app --port 8000
-    # AI 정밀 검사를 켜려면: ANTHROPIC_API_KEY 환경변수 설정
+    # AI 정밀 검사를 켜려면: OPENAI_API_KEY 환경변수 설정 (ANTHROPIC_API_KEY도 지원 — 있으면 우선)
 
 ## 테스트 / 배포 후 확인
 
@@ -48,7 +48,7 @@ Docker 미설치 환경이므로 로컬 빌드 검증은 배포 시점으로 미
 
     fly launch --copy-config --no-deploy   # 즉시 배포는 건너뛴다 — 볼륨이 아직 없음
     fly volumes create plan_lint_data --size 1  # 첫 배포 전 필수 — 쿼터 DB 영속화용
-    fly secrets set ANTHROPIC_API_KEY=<your-key>
+    fly secrets set OPENAI_API_KEY=<your-key>
     fly deploy
     python scripts/smoke.py https://plan-lint-web.fly.dev
 
