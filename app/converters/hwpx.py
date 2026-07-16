@@ -34,14 +34,31 @@ def convert_hwpx(data: bytes) -> ConversionResult:
                 root = ET.fromstring(z.read(name))
             except ET.ParseError as e:
                 raise ConversionError("HWPX 내부 구조를 읽지 못했어요. 텍스트 붙여넣기로 시도해주세요.") from e
+            consumed: set[int] = set()  # 표 처리에서 소비한 하위 요소(p·중첩 tbl) id
             for elem in root.iter():
-                if _localname(elem.tag) == "tbl":
+                ln = _localname(elem.tag)
+                if ln == "tbl":
+                    if id(elem) in consumed:
+                        continue  # 중첩 표는 바깥 표 처리에서 이미 셀 텍스트로 흡수됨
                     has_table = True
-                if _localname(elem.tag) != "p":
+                    # 표는 행 단위 '셀 | 셀 | 셀'로 재구성 — 셀을 세로로 나열하면
+                    # 행의 맥락(항목-내용-시기 대응)이 깨져 검사 품질이 떨어진다
+                    for sub in elem.iter():
+                        consumed.add(id(sub))
+                    # 직접 자식 tr/tc만 행·셀로 취급 — 셀 안에 중첩된 표의 텍스트는
+                    # tc.iter()를 통해 바깥 셀 내용으로 흡수된다 (별도 행 중복 방지)
+                    for tr in (e for e in elem if _localname(e.tag) == "tr"):
+                        cells = []
+                        for tc in (c for c in tr if _localname(c.tag) == "tc"):
+                            texts = [t.text for t in tc.iter() if _localname(t.tag) == "t" and t.text]
+                            cells.append("".join(texts).strip())
+                        if any(cells):
+                            paragraphs.append(" | ".join(cells))
+                    continue
+                if ln != "p" or id(elem) in consumed:
                     continue
                 # 직접 자식 run의 직접 자식 t만 수집 — run 안에 중첩된 표(tbl)의
-                # 텍스트는 제외해서, 표 안 문단(p)이 root.iter()에서 별도로
-                # 한 번만 수집되게 한다 (중복·내용 훼손 방지)
+                # 텍스트는 제외 (표 텍스트는 위의 행 단위 처리에서만 나온다)
                 runs = [
                     t.text
                     for run in elem

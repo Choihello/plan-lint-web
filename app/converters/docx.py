@@ -4,11 +4,22 @@ import io
 import re
 
 import docx as docx_lib
+from docx.table import Table
+from docx.text.paragraph import Paragraph
 
 from . import ConversionError, ConversionResult, check_zip_safety
 from .headings import structure_headings
 
 _HEADING_STYLE = re.compile(r"^(?:Heading|제목)\s*(\d)", re.IGNORECASE)
+
+
+def _iter_blocks(d):
+    """본문의 문단·표를 문서 순서 그대로 순회 — 표를 끝에 몰면 섹션 귀속이 깨진다."""
+    for child in d.element.body.iterchildren():
+        if child.tag.endswith("}p"):
+            yield Paragraph(child, d)
+        elif child.tag.endswith("}tbl"):
+            yield Table(child, d)
 
 
 def convert_docx(data: bytes) -> ConversionResult:
@@ -20,25 +31,26 @@ def convert_docx(data: bytes) -> ConversionResult:
 
     lines: list[str] = []
     has_heading = False
-    for para in d.paragraphs:
-        text = para.text.strip()
-        if not text:
-            continue
-        m = _HEADING_STYLE.match(para.style.name or "")
-        if m:
-            has_heading = True
-            lines.append("#" * min(int(m.group(1)), 6) + " " + text)
-        else:
-            lines.append(text)
+    table_flattened = False
+    for block in _iter_blocks(d):
+        if isinstance(block, Paragraph):
+            text = block.text.strip()
+            if not text:
+                continue
+            m = _HEADING_STYLE.match(block.style.name or "")
+            if m:
+                has_heading = True
+                lines.append("#" * min(int(m.group(1)), 6) + " " + text)
+            else:
+                lines.append(text)
+        else:  # Table — 행 단위 '셀 | 셀'로, 빈 셀은 자리 유지
+            for row in block.rows:
+                cells = [c.text.strip() for c in row.cells]
+                if any(cells):
+                    lines.append(" | ".join(cells))
+                    table_flattened = True
 
     warnings: list[str] = []
-    table_flattened = False
-    for table in d.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells]
-            if any(cells):
-                lines.append(" | ".join(cells))
-                table_flattened = True
     if table_flattened:
         warnings.append("표가 텍스트로 평탄화됐어요 — 표 안 수치 검사는 부정확할 수 있어요")
 

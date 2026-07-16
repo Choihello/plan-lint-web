@@ -19,6 +19,21 @@ def _docx_with_heading() -> bytes:
     return buf.getvalue()
 
 
+def test_tables_keep_document_position():
+    # 표가 문서 끝에 몰리면 뒤 섹션에 잘못 귀속된다 — 본문 순서 그대로 나와야 함
+    d = docx_lib.Document()
+    d.add_heading("사업 개요", level=1)
+    t = d.add_table(rows=1, cols=2)
+    t.rows[0].cells[0].text = "예산"
+    t.rows[0].cells[1].text = "5억원"
+    d.add_heading("시장 분석", level=1)
+    d.add_paragraph("시장 설명.")
+    buf = io.BytesIO()
+    d.save(buf)
+    r = convert_docx(buf.getvalue())
+    assert r.text.index("# 사업 개요") < r.text.index("예산 | 5억원") < r.text.index("# 시장 분석")
+
+
 def test_headings_become_markdown():
     r = convert_docx(_docx_with_heading())
     assert "# 사업 개요" in r.text

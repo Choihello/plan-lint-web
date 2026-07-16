@@ -35,6 +35,45 @@ def test_table_text_flattened_with_warning():
     assert any("표" in w for w in r.warnings)
 
 
+_TABLE_SECTION = """<?xml version="1.0" encoding="UTF-8"?>
+<hs:sec xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section"
+        xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph">
+  <hp:p><hp:run><hp:t>추진 일정</hp:t></hp:run></hp:p>
+  <hp:tbl>
+    <hp:tr>
+      <hp:tc><hp:p><hp:run><hp:t>순번</hp:t></hp:run></hp:p></hp:tc>
+      <hp:tc><hp:p><hp:run><hp:t>내용</hp:t></hp:run></hp:p></hp:tc>
+      <hp:tc><hp:p><hp:run><hp:t>시기</hp:t></hp:run></hp:p></hp:tc>
+    </hp:tr>
+    <hp:tr>
+      <hp:tc><hp:p><hp:run><hp:t>8</hp:t></hp:run></hp:p></hp:tc>
+      <hp:tc><hp:p><hp:run><hp:t>R&amp;D 및 설계 수주</hp:t></hp:run></hp:p></hp:tc>
+      <hp:tc><hp:p><hp:run><hp:t>2027년 상반기</hp:t></hp:run></hp:p></hp:tc>
+    </hp:tr>
+  </hp:tbl>
+  <hp:p><hp:run><hp:t>마무리 문단</hp:t></hp:run></hp:p>
+</hs:sec>"""
+
+
+def test_table_rows_joined_horizontally():
+    # 표는 셀 세로 나열이 아니라 행 단위 '셀 | 셀 | 셀'로 재구성돼야 한다
+    r = convert_hwpx(_hwpx(_TABLE_SECTION))
+    assert "순번 | 내용 | 시기" in r.text
+    assert "8 | R&D 및 설계 수주 | 2027년 상반기" in r.text
+    # 세로 나열(각 셀이 별도 문단)이 아니어야 함
+    assert "순번\n\n내용" not in r.text
+
+
+def test_table_rows_keep_document_position():
+    r = convert_hwpx(_hwpx(_TABLE_SECTION))
+    assert r.text.index("추진 일정") < r.text.index("순번 | 내용 | 시기") < r.text.index("마무리 문단")
+
+
+def test_table_cell_text_not_duplicated():
+    r = convert_hwpx(_hwpx(_TABLE_SECTION))
+    assert r.text.count("R&D 및 설계 수주") == 1
+
+
 def test_empty_hwpx_rejected():
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
