@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from .headings import promote_headings
 
 _MAX_UNZIPPED = 50 * 1024 * 1024  # ZIP 폭탄 방어: 해제 합계 상한
-_OLE_MAGIC = b"\xd0\xcf\x11\xe0"  # 구형 .hwp (OLE2)
 _ZIP_MAGIC = b"PK\x03\x04"
 _PDF_MAGIC = b"%PDF"
 
@@ -46,7 +45,7 @@ def normalize_pasted(text: str) -> ConversionResult:
 
 def convert(data: bytes, filename: str) -> ConversionResult:
     ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
-    if ext == "hwp" or data[:4] == _OLE_MAGIC:
+    if ext == "hwp":
         raise ConversionError(HWP_GUIDANCE)
     if ext == "hwpx":
         if not data.startswith(_ZIP_MAGIC):

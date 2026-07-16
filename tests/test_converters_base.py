@@ -53,3 +53,21 @@ def test_promote_headings_ignores_long_lines():
     text = "1. " + "가" * 60
     promoted, _ = promote_headings(text)
     assert "##" not in promoted
+
+
+def test_promote_headings_korean_ordinal_markers_only():
+    promoted, _ = promote_headings("가. 사업 개요\n본문.")
+    assert "## 가. 사업 개요" in promoted
+
+
+def test_promote_headings_ignores_ordinary_hangul_prose():
+    promoted, _ = promote_headings("강. 여기서부터 본문입니다\n표. 아래 표를 참고하세요")
+    assert "##" not in promoted
+
+
+def test_ole_file_with_docx_name_gets_docx_error_not_hwp_guidance():
+    ole = b"\xd0\xcf\x11\xe0" + b"\x00" * 100
+    with pytest.raises(ConversionError) as e:
+        convert(ole, "plan.docx")
+    assert "hwpx" not in str(e.value).lower()
+    assert "docx" in str(e.value).lower()
