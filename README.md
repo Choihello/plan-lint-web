@@ -46,7 +46,7 @@ Docker 미설치 환경이므로 로컬 빌드 검증은 배포 시점으로 미
 
 설정 파일(`fly.toml`)이 준비됐으므로 사용자가 다음 명령으로 배포:
 
-    fly launch --copy-config
+    fly launch --copy-config --no-deploy   # 즉시 배포는 건너뛴다 — 볼륨이 아직 없음
     fly volumes create plan_lint_data --size 1  # 첫 배포 전 필수 — 쿼터 DB 영속화용
     fly secrets set ANTHROPIC_API_KEY=<your-key>
     fly deploy
