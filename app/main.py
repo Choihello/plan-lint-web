@@ -52,6 +52,20 @@ def client_ip(request: Request) -> str:
 
 
 @app.middleware("http")
+async def cache_policy(request: Request, call_next):
+    """HTML은 항상 재검증(스타일 개편 시 구버전 잔존 방지), 정적 자산은 ?v= 버스팅 전제로 장기 캐시."""
+    response = await call_next(request)
+    ctype = response.headers.get("content-type", "")
+    if "text/html" in ctype:
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    elif request.url.path.startswith("/fonts/"):
+        response.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+    elif request.url.path.endswith((".css", ".js")):
+        response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+@app.middleware("http")
 async def limit_body_size(request: Request, call_next):
     if request.method == "POST" and request.url.path == "/api/lint":
         cl = request.headers.get("content-length")
