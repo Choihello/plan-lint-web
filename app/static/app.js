@@ -116,7 +116,7 @@ async function refreshQuota() {
   try {
     const r = await (await fetch("/api/quota", { headers: adminHeaders() })).json();
     $("quota-info").textContent =
-      r.remaining_today < 0 ? "(무제한 — 관리자 모드)" : `(오늘 남은 횟수: ${r.remaining_today}회)`;
+      r.remaining_today < 0 ? "관리자 모드 — 횟수 제한 없이 사용 중" : `(오늘 남은 횟수: ${r.remaining_today}회)`;
   } catch { /* 표시는 부가 기능 — 실패해도 무시 */ }
 }
 refreshQuota();
