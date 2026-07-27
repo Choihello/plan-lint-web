@@ -184,26 +184,32 @@ function renderReport(body) {
         .map(([sev, n]) => `<span class="badge ${esc(sev)}">${SEV_LABELS[sev]} ${n}</span>`).join("");
 
   // 원문 + 하이라이트: highlightSource 참고 (파일 상단 설명 주석)
-  $("source-pane").innerHTML = highlightSource(body.converted_text, body.findings);
+  // .source-inner 래핑: 깎기 카드(§5-1) 안의 맨 텍스트 노드는 표면 아래로 깔린다
+  $("source-pane").innerHTML =
+    '<div class="source-inner">' + highlightSource(body.converted_text, body.findings) + "</div>";
 
   // 결함 카드 (0건이면 클린 상태 패널)
   const SUGGESTION_ICON =
     '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 18h6M10 21h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.7.5 1.1 1.3 1.2 2.1h4.4c.1-.8.5-1.6 1.2-2.1A6 6 0 0 0 12 3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
   $("cards-pane").innerHTML = body.findings.length === 0
-    ? `<div class="clean-state">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <h3>이번 검사에서 결함을 찾지 못했어요</h3>
-        <p>검사 항목 기준으로 문제가 없다는 뜻이며, 계획서의 완성도를 보장하는 평가는 아니에요.</p>
+    ? `<div class="clean-state cut-card">
+        <div class="clean-inner">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>이번 검사에서 결함을 찾지 못했어요</h3>
+          <p>검사 항목 기준으로 문제가 없다는 뜻이며, 계획서의 완성도를 보장하는 평가는 아니에요.</p>
+        </div>
       </div>`
     : body.findings.map((f, idx) => `
-    <div class="card ${esc(f.severity)}" data-idx="${idx}">
-      <div class="card-head">
-        <span class="sev">${SEV_LABELS[f.severity]}</span>
-        <h3>${esc(CHECKER_LABELS[f.checker] || f.checker)}</h3>
+    <div class="card cut-card cut-card--sm ${esc(f.severity)}" data-idx="${idx}">
+      <div class="card-inner">
+        <div class="card-head">
+          <span class="sev">${SEV_LABELS[f.severity]}</span>
+          <h3>${esc(CHECKER_LABELS[f.checker] || f.checker)}</h3>
+        </div>
+        <p>${esc(f.message)}</p>
+        ${(f.quotes || []).map((q) => `<blockquote>${esc(q)}</blockquote>`).join("")}
+        ${f.suggestion ? `<div class="suggestion"><span class="suggestion-label">${SUGGESTION_ICON}보강 제안</span><span>${esc(f.suggestion)}</span></div>` : ""}
       </div>
-      <p>${esc(f.message)}</p>
-      ${(f.quotes || []).map((q) => `<blockquote>${esc(q)}</blockquote>`).join("")}
-      ${f.suggestion ? `<div class="suggestion"><span class="suggestion-label">${SUGGESTION_ICON}보강 제안</span>${esc(f.suggestion)}</div>` : ""}
     </div>`).join("");
 
   // 카드 ↔ 하이라이트 상호 스크롤
