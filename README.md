@@ -58,8 +58,9 @@
 | PLW_CONVERT_CONCURRENCY | 2 | 동시 파일 변환 상한 (검사와 별도 풀) |
 | PLW_MAX_INFLIGHT_LINT | 8 | 동시 진단 요청 상한 — 초과 시 503 + Retry-After |
 | PLW_QUOTA_DB | quota.sqlite3 | 쿼터 DB 경로 |
-| PLW_QUOTA_SALT | (내장) | IP 해시 솔트 — 운영 시 변경 권장 |
-| PLW_ADMIN_TOKEN | (없음) | 관리자 무제한 토큰 — `/?admin=<토큰>`으로 접속하면 쿼터 없이 AI 검사. 비우면 비활성 |
+| PLW_QUOTA_SALT | (내장) | IP 해시 솔트 — **운영에서는 반드시 고엔트로피 값으로 설정** (기본값은 코드에 공개돼 있어 해시 역산 가능) |
+| PLW_ADMIN_TOKEN | (없음) | 관리자 토큰 — `/?admin=<토큰>`으로 접속. 비우면 관리자 모드 비활성 |
+| PLW_ADMIN_DAILY | 100 | **관리자 일일 상한** — 토큰 유출 시 무제한 호출 차단. 공개 전역 캡과 별도 축 |
 | PLW_TRUST_PROXY_HEADERS | 1 | 프록시 IP 헤더 신뢰 여부 — 신뢰 프록시(Fly 등) 뒤가 아니면 0으로 |
 
 ## Docker 빌드·배포
