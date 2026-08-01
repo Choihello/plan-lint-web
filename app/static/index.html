@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>plan-lint — 사업계획서 사전 진단</title>
 <meta name="description" content="정부 창업지원사업 사업계획서를 제출 전에 진단합니다. 파일 업로드만으로 결함을 찾고 보강 방법까지 제안해요.">
-<link rel="stylesheet" href="/style.css?v=fs3">
+<link rel="stylesheet" href="/style.css?v=fs5">
 </head>
 <body>
 <header class="site-header">
@@ -47,17 +47,19 @@
   <section class="panel-card cut-card" aria-label="사업계획서 입력">
     <div class="panel-inner">
     <div class="tabs" role="tablist" aria-label="입력 방식">
-      <button id="tab-file" class="tab active" type="button" role="tab" aria-selected="true">
+      <button id="tab-file" class="tab active" type="button" role="tab"
+              aria-selected="true" aria-controls="panel-file" tabindex="0">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 16V5m0 0l-4 4m4-4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 16v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         파일 올리기
       </button>
-      <button id="tab-text" class="tab" type="button" role="tab" aria-selected="false">
+      <button id="tab-text" class="tab" type="button" role="tab"
+              aria-selected="false" aria-controls="panel-text" tabindex="-1">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         텍스트 붙여넣기
       </button>
     </div>
 
-    <div id="panel-file" class="panel">
+    <div id="panel-file" class="panel" role="tabpanel" aria-labelledby="tab-file">
       <div id="dropzone" tabindex="0" role="button" aria-label="파일 선택 — .hwpx, .pdf, .docx 파일을 끌어다 놓거나 클릭해서 선택">
         <svg width="40" height="40" class="dz-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 15V6m0 0l-3.5 3.5M12 6l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -71,7 +73,7 @@
       <p id="file-name" class="file-name" role="status"></p>
     </div>
 
-    <div id="panel-text" class="panel" hidden>
+    <div id="panel-text" class="panel" role="tabpanel" aria-labelledby="tab-text" hidden>
       <label class="field-label" for="text-input">사업계획서 본문</label>
       <textarea id="text-input" rows="12" placeholder="사업계획서 본문을 붙여넣으세요"></textarea>
     </div>
@@ -117,7 +119,7 @@
         <path d="M9 13.5l2.2 2.2L15.5 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <div>
-        <h1>진단 리포트</h1>
+        <h1 id="report-heading" tabindex="-1">진단 리포트</h1>
         <p id="report-meta" class="report-meta"></p>
       </div>
     </div>
@@ -150,6 +152,6 @@
     </div>
   </div>
 </div>
-<script src="/app.js?v=fs4"></script>
+<script src="/app.js?v=fs5"></script>
 </body>
 </html>

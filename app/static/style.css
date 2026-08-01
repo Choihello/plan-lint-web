@@ -451,6 +451,18 @@ mark.focused { outline: 2px solid var(--focus); }
   margin-bottom: .3rem;
 }
 .suggestion-label svg { width: 14px; height: 14px; }
+/* LLM 제안의 줄바꿈을 보존한다 (여러 줄 제안이 한 덩어리로 뭉치던 문제) */
+.suggestion-body { display: block; white-space: pre-wrap; }
+
+.copy-fallback {
+  margin-top: var(--space-4);
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.copy-fallback p { font-size: .88rem; color: var(--text-muted); margin-bottom: .5rem; }
+.copy-fallback[hidden] { display: none; }
 
 .clean-state { text-align: center; }
 .clean-state .clean-inner { padding: 2.2rem 1.5rem; }

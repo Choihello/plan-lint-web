@@ -75,15 +75,33 @@ function highlightSource(text, findings) {
   return out;
 }
 
-// --- 탭 ---
+// --- 탭 (WAI-ARIA tabs 패턴: roving tabindex + 방향키) ---
 $("tab-file").onclick = () => switchTab(true);
 $("tab-text").onclick = () => switchTab(false);
-function switchTab(isFile) {
-  $("tab-file").classList.toggle("active", isFile);
-  $("tab-text").classList.toggle("active", !isFile);
+function switchTab(isFile, moveFocus = false) {
+  const fileTab = $("tab-file"), textTab = $("tab-text");
+  for (const [tab, on] of [[fileTab, isFile], [textTab, !isFile]]) {
+    tab.classList.toggle("active", on);
+    tab.setAttribute("aria-selected", on ? "true" : "false");
+    tab.tabIndex = on ? 0 : -1;   // 비활성 탭은 Tab 순회에서 빠진다
+  }
   $("panel-file").hidden = !isFile;
   $("panel-text").hidden = isFile;
+  if (moveFocus) (isFile ? fileTab : textTab).focus();
 }
+$("tab-file").parentElement.addEventListener("keydown", (e) => {
+  const onFile = $("tab-file").getAttribute("aria-selected") === "true";
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    switchTab(!onFile, true);
+  } else if (e.key === "Home") {
+    e.preventDefault();
+    switchTab(true, true);
+  } else if (e.key === "End") {
+    e.preventDefault();
+    switchTab(false, true);
+  }
+});
 
 // --- 파일 선택/드롭 ---
 const dz = $("dropzone");
@@ -202,7 +220,9 @@ function renderReport(body) {
         </div>
       </div>`
     : body.findings.map((f, idx) => `
-    <div class="card cut-card cut-card--sm ${esc(f.severity)}" data-idx="${idx}">
+    <div class="card cut-card cut-card--sm ${esc(f.severity)}" data-idx="${idx}"
+         role="button" tabindex="0"
+         aria-label="${esc(SEV_LABELS[f.severity])} — ${esc(CHECKER_LABELS[f.checker] || f.checker)}. 원문 위치로 이동">
       <div class="card-inner">
         <div class="card-head">
           <span class="sev">${SEV_LABELS[f.severity]}</span>
@@ -210,17 +230,24 @@ function renderReport(body) {
         </div>
         <p>${esc(f.message)}</p>
         ${(f.quotes || []).map((q) => `<blockquote>${esc(q)}</blockquote>`).join("")}
-        ${f.suggestion ? `<div class="suggestion"><span class="suggestion-label">${SUGGESTION_ICON}보강 제안</span><span>${esc(f.suggestion)}</span></div>` : ""}
+        ${f.suggestion ? `<div class="suggestion"><span class="suggestion-label">${SUGGESTION_ICON}보강 제안</span><span class="suggestion-body">${esc(f.suggestion)}</span></div>` : ""}
       </div>
     </div>`).join("");
 
-  // 카드 ↔ 하이라이트 상호 스크롤
+  // 카드 ↔ 하이라이트 상호 스크롤 (카드는 키보드로도 조작 가능)
   document.querySelectorAll(".card").forEach((card) => {
-    card.onclick = () => focusMark("#source-pane mark", card.dataset.idx);
+    const go = () => focusMark("#source-pane mark", card.dataset.idx);
+    card.onclick = go;
+    card.onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+    };
   });
   document.querySelectorAll("#source-pane mark").forEach((m) => {
     m.onclick = () => focusMark("#cards-pane .card", m.dataset.idx);
   });
+
+  // 화면이 바뀌었음을 스크린리더에 알리고 읽기 시작점을 제목으로 옮긴다
+  $("report-heading").focus();
 }
 
 function focusMark(selector, idx) {
@@ -232,7 +259,7 @@ function focusMark(selector, idx) {
 }
 
 // --- 결과 복사 (마크다운) ---
-$("copy-btn").onclick = () => {
+$("copy-btn").onclick = async () => {
   if (!lastResult) return;
   const lines = ["# plan-lint 진단 결과", ""];
   for (const f of lastResult.findings) {
@@ -242,12 +269,41 @@ $("copy-btn").onclick = () => {
     if (f.suggestion) lines.push(`제안: ${f.suggestion}`);
     lines.push("");
   }
-  navigator.clipboard.writeText(lines.join("\n"));
+  const text = lines.join("\n");
   const btn = $("copy-btn");
   const original = btn.innerHTML; // SVG 아이콘 보존을 위해 innerHTML로 복원
-  btn.textContent = "복사됐어요!";
-  setTimeout(() => (btn.innerHTML = original), 1500);
+  try {
+    // 완료를 기다린 뒤에만 성공을 표시한다 — 권한 거부·비보안 컨텍스트에서
+    // 거짓 성공을 띄우면 사용자가 붙여넣기에 실패하고서야 알게 된다
+    if (!navigator.clipboard) throw new Error("clipboard unavailable");
+    await navigator.clipboard.writeText(text);
+    btn.textContent = "복사됐어요!";
+    setTimeout(() => (btn.innerHTML = original), 1500);
+  } catch {
+    btn.textContent = "복사 실패";
+    setTimeout(() => (btn.innerHTML = original), 1500);
+    showCopyFallback(text);
+  }
 };
+
+function showCopyFallback(text) {
+  // 자동 복사가 막힌 환경 — 직접 선택해 복사할 수 있게 원문을 펼쳐 보여준다
+  let box = $("copy-fallback");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "copy-fallback";
+    box.className = "copy-fallback";
+    box.innerHTML =
+      '<p>자동 복사가 차단됐어요. 아래 내용을 선택해 복사해주세요 (Ctrl+A → Ctrl+C).</p>' +
+      '<textarea readonly rows="10" aria-label="진단 결과 원문"></textarea>';
+    $("report-view").appendChild(box);
+  }
+  const area = box.querySelector("textarea");
+  area.value = text;
+  box.hidden = false;
+  area.focus();
+  area.select();
+}
 
 $("again-btn").onclick = () => {
   $("report-view").hidden = true;

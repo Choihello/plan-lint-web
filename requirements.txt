@@ -6,4 +6,8 @@ pymupdf>=1.24
 python-docx>=1.1
 # 배포 이름은 plan-lint, import 이름은 planlint (상류 pyproject.toml의 name 기준)
 # [openai] extra: OPENAI_API_KEY로 LLM 검사 (make_client auto가 키 보고 선택)
-plan-lint[openai] @ git+https://github.com/Choihello/plan-lint@main
+#
+# 커밋 SHA로 고정한다 — @main이면 같은 커밋을 빌드해도 시점에 따라 다른 엔진이 설치돼
+# 배포가 비결정적이 된다. 엔진을 갱신할 때는 이 SHA를 함께 올리고 하네스를 재실행할 것.
+# 현재 고정: cd94b77 (2026-08-01, vague-goal 체커 + 하네스 실측 반영)
+plan-lint[openai] @ git+https://github.com/Choihello/plan-lint@cd94b77bb8b0af8a8d05db2dd2d7f60adeea335a
