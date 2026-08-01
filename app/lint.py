@@ -6,6 +6,7 @@ from functools import lru_cache
 
 from planlint.cli import RULE_CHECKERS, build_llm_checkers
 from planlint.core.engine import run_checks
+from planlint.core.matching import annotate_sections
 from planlint.core.models import Document
 from planlint.core.profile import Profile, load_profile
 
@@ -33,9 +34,45 @@ class LintOutcome:
     llm_error: bool = False
 
 
+_SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
+
+
+def _collapse_missing_sections(findings: list[dict], doc: Document, profile: Profile) -> list[dict]:
+    """프로파일 섹션이 하나도 매칭되지 않으면 '필수 항목 누락' 무더기를 안내 1건으로 바꾼다.
+
+    다른 공고 서식이나 제목 형식이 다른 문서를 넣으면 치명 결함 4개가 쏟아지는데,
+    실제로 성립하는 사실은 '이 서식이 아니다' 하나뿐이다(실파일 검증에서 확인).
+    일부라도 매칭되면 나머지 누락은 진짜 결함이므로 그대로 둔다.
+    """
+    annotate_sections(doc, profile)
+    if any(s.profile_id for s in doc.sections):
+        return findings
+    missing = [f for f in findings if f["checker"] == "missing-section"]
+    if not missing:
+        return findings
+    titles = ", ".join(f["section"] for f in missing if f.get("section"))
+    notice = {
+        "checker": "profile-mismatch",
+        "severity": "info",
+        "message": (
+            f"이 문서에서 표준 서식 항목({titles})을 찾지 못했어요. "
+            "다른 공고 서식이거나 제목 형식이 달라서일 수 있어요."
+        ),
+        "section": None,
+        "quotes": [],
+        "suggestion": (
+            "예비창업패키지·초기창업패키지 표준 서식이라면 각 항목 제목이 그대로 들어가 있는지 "
+            "확인해주세요. 다른 서식이라면 항목 검사는 건너뛰고 나머지 결과만 참고하시면 됩니다."
+        ),
+        "next_action": None,
+    }
+    rest = [f for f in findings if f["checker"] != "missing-section"]
+    return sorted(rest + [notice], key=lambda f: _SEVERITY_ORDER.get(f["severity"], 3))
+
+
 def _rules_only(doc: Document, profile: Profile) -> list[dict]:
     findings = run_checks(doc, profile, list(RULE_CHECKERS), llm_available=False)
-    return [f.to_dict() for f in findings]
+    return _collapse_missing_sections([f.to_dict() for f in findings], doc, profile)
 
 
 def run_lint(text: str, llm_client=None) -> LintOutcome:
@@ -58,7 +95,7 @@ def run_lint(text: str, llm_client=None) -> LintOutcome:
 
         checkers = list(RULE_CHECKERS) + llm_checkers
         findings = run_checks(doc, profile, checkers, llm_available=True)
-        dicts = [f.to_dict() for f in findings]
+        dicts = _collapse_missing_sections([f.to_dict() for f in findings], doc, profile)
         # 컨설팅 모드: AI 검사가 성공한 경우에만 제안 심화 (+1콜, 실패 시 기존 제안 유지)
         dicts = enrich_suggestions(dicts, text, enrich_client)
         return LintOutcome(findings=dicts, llm_ran=True)

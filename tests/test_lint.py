@@ -1,6 +1,8 @@
 from app.lint import run_lint
 
-TINY = "# 개요\n\n한 줄짜리 계획서."
+# 프로파일 섹션 하나만 매칭되는 문서 — 나머지 3개는 진짜 누락이라 missing-section이 나온다.
+# (섹션이 하나도 매칭되지 않으면 서식 불일치 안내 1건으로 합쳐진다: test_profile_mismatch.py)
+TINY = "# 문제인식\n\n한 줄짜리 계획서."
 
 
 class FakeClient:

@@ -67,13 +67,14 @@ def test_admin_header_ignored_when_token_unconfigured(client):
 
 
 def test_text_lint_rules_and_llm(client):
-    resp = client.post("/api/lint", data={"text": "# 개요\n\n한 줄.", "use_llm": "true"})
+    # 프로파일 섹션 하나가 매칭되는 문서 — 나머지 누락은 진짜 결함이라 missing-section이 나온다
+    resp = client.post("/api/lint", data={"text": "# 문제인식\n\n한 줄.", "use_llm": "true"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["meta"]["llm_ran"] is True
     assert body["meta"]["llm_skipped_reason"] is None
     assert any(f["checker"] == "missing-section" for f in body["findings"])
-    assert body["converted_text"].startswith("# 개요")
+    assert body["converted_text"].startswith("# 문제인식")
 
 
 def test_quota_exhausted_degrades_to_rules(client):
