@@ -15,7 +15,7 @@ from starlette.formparsers import MultiPartParser
 from .config import load_settings
 from .converters import ConversionError, convert, normalize_pasted
 from .lint import run_lint
-from .llm_budget import BudgetedClient, apply_request_timeout
+from .llm_budget import BudgetPool, apply_request_timeout
 from .quota import Quota
 
 logger = logging.getLogger("planlint.web")
@@ -188,7 +188,7 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
         if skipped_reason is None:
             try:
                 # 요청당 호출 예산 + SDK 타임아웃을 씌운다 (관리자도 예외 없음)
-                llm_client = BudgetedClient(
+                llm_client = BudgetPool(
                     apply_request_timeout(make_client(), settings.llm_request_timeout),
                     settings.max_llm_calls,
                 )
@@ -236,8 +236,16 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
         skipped_reason = "llm_error"
 
     if llm_client is not None and llm_client.budget_exhausted:
+        labels = {
+            "unsupported-claim": "근거 없는 주장",
+            "vague-goal": "구체성 부족",
+            "logic-gap": "논리 단절",
+            "internal-contradiction": "내부 모순",
+            "enrich": "보강 제안",
+        }
+        limited = ", ".join(labels.get(n, n) for n in sorted(llm_client.limited))
         warnings = warnings + [
-            f"문서가 길어 AI 정밀 검사를 앞부분 위주로 {settings.max_llm_calls}회까지만 수행했어요"
+            f"문서가 길어 일부 검사({limited})는 앞부분까지만 수행했어요 — 뒷부분을 나눠서 다시 진단하면 더 정확해요"
         ]
 
     return {

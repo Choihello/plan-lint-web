@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main_mod
-from app.llm_budget import BudgetedClient, LLMCancelled
+from app.llm_budget import BudgetPool, LLMCancelled, plan_shares
 from app.quota import Quota
 
 
@@ -66,15 +66,14 @@ def test_slow_lint_does_not_block_other_requests(tmp_path, monkeypatch):
 # ---------- P0-2: LLM 호출 예산·취소·환불 ----------
 
 def test_budget_caps_calls_and_degrades_honestly():
-    inner = FakeClient()
-    c = BudgetedClient(inner, max_calls=3)
+    pool = BudgetPool(FakeClient(), total_calls=3)
     for _ in range(5):
-        c.complete("s", "u")
-    assert c.calls_started == 3
-    assert c.budget_exhausted is True
+        pool.complete("s", "u")
+    assert pool.calls_started == 3
+    assert pool.budget_exhausted is True
 
 
-def test_budget_client_passes_through_until_cap():
+def test_budget_pool_passes_through_until_cap():
     calls = []
 
     class Counting:
@@ -82,20 +81,41 @@ def test_budget_client_passes_through_until_cap():
             calls.append(1)
             return "[]"
 
-    c = BudgetedClient(Counting(), max_calls=2)
-    c.complete("s", "u")
-    c.complete("s", "u")
-    c.complete("s", "u")  # 예산 초과 — 내부 클라이언트를 호출하지 않는다
+    pool = BudgetPool(Counting(), total_calls=2)
+    for _ in range(3):
+        pool.complete("s", "u")  # 예산 초과분은 내부 클라이언트를 호출하지 않는다
     assert len(calls) == 2
 
 
 def test_cancel_stops_further_calls():
-    c = BudgetedClient(FakeClient(), max_calls=10)
-    c.complete("s", "u")
-    c.cancel()
+    pool = BudgetPool(FakeClient(), total_calls=10)
+    pool.complete("s", "u")
+    pool.cancel()
     with pytest.raises(LLMCancelled):
-        c.complete("s", "u")
-    assert c.calls_started == 1
+        pool.complete("s", "u")
+    assert pool.calls_started == 1
+
+
+def test_shares_reserve_fixed_checkers_first():
+    shares = plan_shares(24, ["unsupported-claim", "vague-goal"],
+                         {"logic-gap": 2, "internal-contradiction": 1, "enrich": 1})
+    assert shares["internal-contradiction"] == 1
+    assert shares["enrich"] == 1
+    assert shares["unsupported-claim"] == shares["vague-goal"] == 10
+    assert sum(shares.values()) <= 24
+
+
+def test_share_cannot_exceed_own_allocation():
+    pool = BudgetPool(FakeClient(), total_calls=10)
+    small = pool.share("unsupported-claim", 2)
+    for _ in range(5):
+        small.complete("s", "u")
+    assert pool.calls_started == 2, "자기 몫을 넘어 총 예산을 잠식함"
+    assert "unsupported-claim" in pool.limited
+    # 몫을 다 쓴 체커가 있어도 다른 체커의 몫은 살아 있다
+    other = pool.share("enrich", 1)
+    other.complete("s", "u")
+    assert pool.calls_started == 3
 
 
 def test_request_enforces_call_budget(tmp_path, monkeypatch):
@@ -116,7 +136,45 @@ def test_request_enforces_call_budget(tmp_path, monkeypatch):
     with TestClient(main_mod.app) as c:
         body = c.post("/api/lint", data={"text": doc, "use_llm": "true"}).json()
     assert calls["n"] <= 5, f"예산 5회를 초과해 {calls['n']}회 호출됨"
-    assert any("AI 정밀 검사" in w for w in body["meta"]["conversion_warnings"])
+    # 어떤 검사가 잘렸는지 이름으로 고지해야 한다 (무엇이 빠졌는지 보이지 않으면 안 됨)
+    warned = " ".join(body["meta"]["conversion_warnings"])
+    assert "앞부분까지만" in warned, warned
+    assert any(k in warned for k in ("근거 없는 주장", "구체성 부족", "보강 제안", "내부 모순")), warned
+
+
+def test_long_document_still_runs_whole_doc_checks_and_enrich():
+    """섹션이 많아도 내부 모순·보강 제안이 굶지 않아야 한다.
+
+    회귀: 총량만 막았을 때 unsupported-claim이 예산 24회를 전부 먹고
+    internal-contradiction과 보강 제안이 아예 실행되지 않았다(실측 섹션 38개).
+    """
+    from app.converters import normalize_pasted
+    from app.lint import run_lint
+
+    doc = "\n\n".join(f"{i}. 항목 {i}\n사업 내용을 서술합니다." for i in range(1, 40))
+    src = normalize_pasted(doc).text
+
+    seen = []
+
+    class Tracer:
+        def complete(self, system, user):
+            if "빈칸" in system:
+                seen.append("enrich")
+            elif "모순" in system:
+                seen.append("internal-contradiction")
+            elif "출처" in system:
+                seen.append("unsupported-claim")
+            elif "목표" in system:
+                seen.append("vague-goal")
+            return "[]"
+
+    pool = BudgetPool(Tracer(), total_calls=24)
+    run_lint(src, llm_client=pool)
+
+    assert "internal-contradiction" in seen, "문서 전체 검사가 예산 부족으로 실행되지 않음"
+    assert "enrich" in seen, "보강 제안이 예산 부족으로 실행되지 않음"
+    assert "vague-goal" in seen, "구체성 검사가 실행되지 않음"
+    assert pool.calls_started <= 24
 
 
 def test_no_refund_when_external_calls_already_started(tmp_path, monkeypatch):
