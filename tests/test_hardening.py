@@ -209,6 +209,59 @@ def test_refund_when_no_external_call_happened(tmp_path, monkeypatch):
         assert body["meta"]["remaining_today"] == 1
 
 
+# ---------- P0-4(부분): 관리자 절대 상한 ----------
+
+ADMIN = {"x-admin-token": "test-admin-token"}
+
+
+@pytest.fixture()
+def admin_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLW_QUOTA_DB", str(tmp_path / "q.sqlite3"))
+    monkeypatch.setenv("PLW_ADMIN_TOKEN", "test-admin-token")
+    monkeypatch.setenv("PLW_ADMIN_DAILY", "2")
+    importlib.reload(main_mod)
+    monkeypatch.setattr(main_mod, "make_client", lambda *a, **k: FakeClient())
+    return TestClient(main_mod.app)
+
+
+def test_admin_has_daily_cap(admin_client):
+    """토큰이 유출돼도 무제한 유료 호출이 되지 않아야 한다."""
+    for i in range(2):
+        body = admin_client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"},
+                                 headers=ADMIN).json()
+        assert body["meta"]["llm_ran"] is True, f"{i+1}회차가 상한 전에 막힘"
+    body = admin_client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"},
+                             headers=ADMIN).json()
+    assert body["meta"]["llm_ran"] is False
+    assert body["meta"]["llm_skipped_reason"] == "quota_admin"
+    assert body["findings"], "상한 초과여도 룰 결과는 반환해야 한다"
+
+
+def test_admin_cap_does_not_consume_public_quota(tmp_path, monkeypatch):
+    """관리자 사용이 공개 전역 캡을 잠식하면 일반 사용자가 굶는다."""
+    monkeypatch.setenv("PLW_QUOTA_DB", str(tmp_path / "q.sqlite3"))
+    monkeypatch.setenv("PLW_ADMIN_TOKEN", "test-admin-token")
+    monkeypatch.setenv("PLW_ADMIN_DAILY", "5")
+    monkeypatch.setenv("PLW_GLOBAL_DAILY", "2")  # 전역 캡을 좁혀 잠식을 드러낸다
+    importlib.reload(main_mod)
+    monkeypatch.setattr(main_mod, "make_client", lambda *a, **k: FakeClient())
+    with TestClient(main_mod.app) as c:
+        for _ in range(3):
+            c.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers=ADMIN)
+        # 관리자가 3회 썼어도 공개 전역 2회는 그대로 남아 있어야 한다
+        body = c.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}).json()
+        assert body["meta"]["llm_skipped_reason"] is None, "관리자 사용이 공개 쿼터를 잠식함"
+        assert body["meta"]["llm_ran"] is True
+
+
+def test_admin_quota_endpoint_reports_remaining(admin_client):
+    r = admin_client.get("/api/quota", headers=ADMIN).json()
+    assert r["admin"] is True
+    assert r["remaining_today"] == 2
+    admin_client.post("/api/lint", data={"text": "# a\n\nb", "use_llm": "true"}, headers=ADMIN)
+    assert admin_client.get("/api/quota", headers=ADMIN).json()["remaining_today"] == 1
+
+
 # ---------- P0-3(부분): 백프레셔 ----------
 
 def test_saturation_returns_503_with_retry_after(client, monkeypatch):

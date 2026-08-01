@@ -45,9 +45,11 @@ def test_admin_bypasses_quota(admin_client):
     assert admin_client.get("/api/quota").json()["remaining_today"] == 1
 
 
-def test_admin_quota_endpoint_unlimited(admin_client):
-    r = admin_client.get("/api/quota", headers=ADMIN)
-    assert r.json()["remaining_today"] == -1  # 프론트가 '무제한'으로 표시
+def test_admin_quota_endpoint_reports_admin_axis(admin_client):
+    """관리자도 일일 상한을 받는다 — 잔여 횟수를 관리자 축으로 보고한다."""
+    r = admin_client.get("/api/quota", headers=ADMIN).json()
+    assert r["admin"] is True
+    assert r["remaining_today"] == 100  # PLW_ADMIN_DAILY 기본값
 
 
 def test_wrong_admin_token_uses_normal_quota(admin_client):

@@ -38,8 +38,10 @@ class Quota:
         미커밋 쓰기 트랜잭션이 열린 채 남아 다른 연결이 'database is locked'로 실패했다.
         정리는 쓰기 경로(try_consume)에서 커밋과 함께 수행한다.
         """
+        # 관리자 카운터는 별도 축이므로 공개 전역 합계에서 제외한다
         total = self._conn.execute(
-            "SELECT COALESCE(SUM(count), 0) FROM usage WHERE date = ?", (today,)
+            "SELECT COALESCE(SUM(count), 0) FROM usage WHERE date = ? AND ip_hash != ?",
+            (today, self.ADMIN_KEY),
         ).fetchone()[0]
         row = self._conn.execute(
             "SELECT count FROM usage WHERE ip_hash = ? AND date = ?", (self._hash(ip), today)
@@ -62,6 +64,45 @@ class Quota:
             )
             self._conn.commit()
             return None
+
+    # 관리자용 카운터는 IP가 없으므로 해시 대신 예약 키를 쓴다.
+    # 공개 사용자 전역 캡과 분리된 축이라, 관리자 사용이 일반 쿼터를 잠식하지 않는다.
+    ADMIN_KEY = "__admin__"
+
+    def try_consume_admin(self, cap: int) -> str | None:
+        """관리자 일일 상한. 토큰이 유출돼도 무제한 유료 호출이 되지 않게 한다."""
+        with self._lock:
+            today = self._today()
+            self._conn.execute("DELETE FROM usage WHERE date != ?", (today,))
+            row = self._conn.execute(
+                "SELECT count FROM usage WHERE ip_hash = ? AND date = ?", (self.ADMIN_KEY, today)
+            ).fetchone()
+            if (row[0] if row else 0) >= cap:
+                self._conn.commit()
+                return "quota_admin"
+            self._conn.execute(
+                "INSERT INTO usage (ip_hash, date, count) VALUES (?, ?, 1) "
+                "ON CONFLICT(ip_hash, date) DO UPDATE SET count = count + 1",
+                (self.ADMIN_KEY, today),
+            )
+            self._conn.commit()
+            return None
+
+    def remaining_admin(self, cap: int) -> int:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT count FROM usage WHERE ip_hash = ? AND date = ?",
+                (self.ADMIN_KEY, self._today()),
+            ).fetchone()
+            return max(0, cap - (row[0] if row else 0))
+
+    def refund_admin(self) -> None:
+        with self._lock:
+            self._conn.execute(
+                "UPDATE usage SET count = MAX(count - 1, 0) WHERE ip_hash = ? AND date = ?",
+                (self.ADMIN_KEY, self._today()),
+            )
+            self._conn.commit()
 
     def refund(self, ip: str) -> None:
         """LLM 호출이 실패했을 때 소비한 횟수를 돌려준다."""

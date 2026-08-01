@@ -11,7 +11,8 @@ const SEV_LABELS = { critical: "치명", warning: "주의", info: "참고" };
 const SKIP_MESSAGES = {
   quota_ip: "오늘 AI 정밀 검사 횟수를 다 썼어요. 기본 검사 결과만 보여드려요 — 내일 다시 이용해주세요.",
   quota_global: "오늘 전체 AI 정밀 검사가 마감됐어요. 기본 검사 결과만 보여드려요 — 내일 다시 이용해주세요.",
-  llm_error: "AI 정밀 검사 중 문제가 생겨 기본 검사 결과만 보여드려요. 사용 횟수는 차감되지 않았어요.",
+  llm_error: "AI 정밀 검사 중 문제가 생겨 기본 검사 결과만 보여드려요.",
+  quota_admin: "관리자 일일 상한을 다 썼어요. 기본 검사 결과만 보여드려요 — 내일 다시 이용해주세요.",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -115,8 +116,9 @@ function hideError() { $("error-box").hidden = true; }
 async function refreshQuota() {
   try {
     const r = await (await fetch("/api/quota", { headers: adminHeaders() })).json();
-    $("quota-info").textContent =
-      r.remaining_today < 0 ? "관리자 모드 — 횟수 제한 없이 사용 중" : `(오늘 남은 횟수: ${r.remaining_today}회)`;
+    $("quota-info").textContent = r.admin
+      ? `관리자 모드 — 오늘 ${r.remaining_today}회 남음`
+      : `(오늘 남은 횟수: ${r.remaining_today}회)`;
   } catch { /* 표시는 부가 기능 — 실패해도 무시 */ }
 }
 refreshQuota();

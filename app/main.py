@@ -122,7 +122,7 @@ async def limit_body_size(request: Request, call_next):
 @app.get("/api/quota")
 def get_quota(request: Request):
     if is_admin(request):
-        return {"remaining_today": -1}  # 프론트가 '무제한(관리자)'로 표시
+        return {"remaining_today": quota.remaining_admin(settings.admin_daily), "admin": True}
     return {"remaining_today": quota.remaining(client_ip(request))}
 
 
@@ -182,7 +182,11 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
     skipped_reason: str | None = None
     consumed = False  # 쿼터를 실제로 소모했을 때만 환불 (관리자는 소모 자체가 없음)
     if use_llm:
-        if not admin:
+        # 관리자도 일일 상한을 받는다 — 토큰 유출 시 무제한 호출 차단(공개 캡과는 별도 축)
+        if admin:
+            skipped_reason = quota.try_consume_admin(settings.admin_daily)
+            consumed = skipped_reason is None
+        else:
             skipped_reason = quota.try_consume(ip)
             consumed = skipped_reason is None
         if skipped_reason is None:
@@ -193,9 +197,18 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
                     settings.max_llm_calls,
                 )
             except LLMUnavailable:
-                if consumed:
-                    quota.refund(ip)  # 외부 호출 전이므로 비용이 발생하지 않았다
+                if consumed:  # 외부 호출 전이므로 비용이 발생하지 않았다
+                    quota.refund_admin() if admin else quota.refund(ip)
                 skipped_reason = "llm_error"
+
+    def do_refund():
+        """소비한 축(관리자/공개)에 맞춰 환불한다."""
+        if not consumed:
+            return
+        if admin:
+            quota.refund_admin()
+        else:
+            quota.refund(ip)
 
     def work():
         if llm_client is not None:
@@ -221,7 +234,7 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
         skipped_reason = "llm_error"
         # 이미 외부 호출이 시작됐다면 비용이 발생했으므로 환불하지 않는다
         if consumed and llm_client.calls_started == 0:
-            quota.refund(ip)
+            do_refund()
         elif consumed:
             logger.warning("타임아웃 — 외부 호출 %d회 발생으로 환불 없음", llm_client.calls_started)
         try:
@@ -232,7 +245,7 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
 
     if outcome.llm_error:
         if consumed and (llm_client is None or llm_client.calls_started == 0):
-            quota.refund(ip)
+            do_refund()
         skipped_reason = "llm_error"
 
     if llm_client is not None and llm_client.budget_exhausted:
@@ -254,7 +267,8 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
         "meta": {
             "llm_ran": outcome.llm_ran,
             "llm_skipped_reason": skipped_reason,
-            "remaining_today": -1 if admin else quota.remaining(ip),
+            "remaining_today": (quota.remaining_admin(settings.admin_daily) if admin
+                               else quota.remaining(ip)),
             "conversion_warnings": warnings,
         },
     }
