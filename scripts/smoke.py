@@ -8,7 +8,9 @@ import sys
 
 import httpx
 
-FIXTURE = "# 개요\n\n한 줄짜리 계획서."  # missing-section이 반드시 잡혀야 함
+# 프로파일 섹션 하나가 매칭되는 문서 — 나머지 3개 누락이 missing-section으로 잡혀야 한다.
+# (섹션이 하나도 매칭되지 않으면 서식 불일치 안내로 합쳐지므로 스모크로는 부적절하다)
+FIXTURE = "# 문제인식\n\n한 줄짜리 계획서."
 
 
 def main(base: str) -> int:

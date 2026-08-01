@@ -51,6 +51,7 @@
 | PLW_GLOBAL_DAILY | 50 | 전역 하루 LLM 검사 횟수 |
 | PLW_MAX_FILE_BYTES | 5242880 | 업로드 파일 상한 |
 | PLW_MAX_TEXT_CHARS | 100000 | 변환 후 텍스트 상한 |
+| PLW_LLM_MODEL | (엔진 기본 gpt-4.1) | 사용할 LLM 모델 ID — 현재 운영값 `gpt-5.6-luna` |
 | PLW_LLM_TIMEOUT | 60 | 요청 전체 LLM 검사 타임아웃(초) |
 | PLW_LLM_REQUEST_TIMEOUT | 25 | LLM 공급자 SDK 단일 호출 타임아웃(초) |
 | PLW_MAX_LLM_CALLS | 24 | **요청당 LLM 호출 절대 상한** (초과 시 부분 검사로 고지) |
