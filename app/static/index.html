@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>plan-lint — 사업계획서 사전 진단</title>
 <meta name="description" content="정부 창업지원사업 사업계획서를 제출 전에 진단합니다. 파일 업로드만으로 결함을 찾고 보강 방법까지 제안해요.">
-<link rel="stylesheet" href="/style.css?v=fs1">
+<link rel="stylesheet" href="/style.css?v=fs3">
 </head>
 <body>
 <header class="site-header">
@@ -83,6 +83,7 @@
         <span class="llm-label">
           AI 정밀 검사
           <small>논리 단절 · 근거 없는 주장 · 내부 모순 · 구체성 부족 + 보강 제안</small>
+          <small class="llm-notice">켜면 문서 내용이 분석을 위해 <strong>OpenAI로 전송</strong>돼요 — 민감정보는 지우고 올려주세요</small>
         </span>
       </label>
       <span id="quota-info" class="quota" role="status"></span>
@@ -96,7 +97,8 @@
 
     <p class="privacy">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.8"/></svg>
-      업로드한 문서는 서버에 저장되지 않으며, 진단 후 즉시 폐기됩니다
+      <span>이 서비스는 문서를 저장하지 않아요 — 메모리에서만 처리하고 진단 후 즉시 폐기합니다.<br>
+      단, <strong>AI 정밀 검사를 켜면</strong> 분석을 위해 문서 내용이 외부 제공자(OpenAI)로 전송됩니다. 끄면 전송 없이 기본 검사만 수행해요.</span>
     </p>
     </div>
   </section>
@@ -148,6 +150,6 @@
     </div>
   </div>
 </div>
-<script src="/app.js?v=fs2"></script>
+<script src="/app.js?v=fs3"></script>
 </body>
 </html>

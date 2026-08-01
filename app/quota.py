@@ -15,6 +15,8 @@ class Quota:
         self._salt = salt
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        # 다른 연결이 쓰기 중이면 즉시 실패하지 않고 기다린다
+        self._conn.execute("PRAGMA busy_timeout = 5000")
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS usage ("
             "ip_hash TEXT NOT NULL, date TEXT NOT NULL, count INTEGER NOT NULL, "
@@ -29,10 +31,13 @@ class Quota:
     def _today() -> str:
         return dt.date.today().isoformat()
 
-    def _counts(self, ip: str) -> tuple[int, int]:
-        """(이 IP의 오늘 사용량, 전역 오늘 사용량). 지난 날짜 행은 겸사겸사 청소."""
-        today = self._today()
-        self._conn.execute("DELETE FROM usage WHERE date != ?", (today,))
+    def _counts(self, ip: str, today: str) -> tuple[int, int]:
+        """(이 IP의 오늘 사용량, 전역 오늘 사용량). 읽기 전용 — 쓰기 트랜잭션을 열지 않는다.
+
+        예전에는 여기서 지난 날짜 행을 DELETE했는데, 조회만 하는 remaining()에서도
+        미커밋 쓰기 트랜잭션이 열린 채 남아 다른 연결이 'database is locked'로 실패했다.
+        정리는 쓰기 경로(try_consume)에서 커밋과 함께 수행한다.
+        """
         total = self._conn.execute(
             "SELECT COALESCE(SUM(count), 0) FROM usage WHERE date = ?", (today,)
         ).fetchone()[0]
@@ -43,7 +48,9 @@ class Quota:
 
     def try_consume(self, ip: str) -> str | None:
         with self._lock:
-            used, total = self._counts(ip)
+            today = self._today()
+            self._conn.execute("DELETE FROM usage WHERE date != ?", (today,))  # 커밋은 아래에서
+            used, total = self._counts(ip, today)
             if total >= self._global:
                 return "quota_global"
             if used >= self._per_ip:
@@ -67,5 +74,5 @@ class Quota:
 
     def remaining(self, ip: str) -> int:
         with self._lock:
-            used, total = self._counts(ip)
+            used, total = self._counts(ip, self._today())
             return max(0, min(self._per_ip - used, self._global - total))

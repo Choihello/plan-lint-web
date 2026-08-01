@@ -286,6 +286,9 @@ textarea:focus { outline: none; border-color: var(--primary); }
 .llm-toggle input:focus-visible + .switch { outline: 2px solid var(--focus); outline-offset: 2px; }
 .llm-label { font-weight: 600; font-size: .95rem; color: var(--text); display: flex; flex-direction: column; }
 .llm-label small { font-weight: 400; font-size: .78rem; color: var(--text-muted); }
+/* 외부 전송 고지 — faint 금지(대비 4.5:1 유지), 결정 지점인 토글 바로 아래 */
+.llm-notice { margin-top: .2rem; color: var(--check-text); }
+.llm-notice strong { font-weight: 600; }
 .quota { color: var(--text-muted); font-size: .84rem; font-variant-numeric: tabular-nums; }
 
 /* ---------- §5-2 버튼 ---------- */
@@ -307,12 +310,17 @@ button.primary:hover svg { transform: translateX(3px); }
 button.primary:disabled { opacity: .45; cursor: default; }
 
 .privacy {
-  display: flex; align-items: center; justify-content: center; gap: .45rem;
+  display: flex; align-items: flex-start; justify-content: center; gap: .45rem;
   color: var(--text-muted); /* 정직성 고지 — faint 금지(§1-4) */
   font-size: .85rem;
+  line-height: 1.55;
   margin-top: var(--space-4);
+  text-align: left;
+  max-width: 640px;
+  margin-inline: auto;
 }
-.privacy svg { width: 14px; height: 14px; }
+.privacy svg { width: 14px; height: 14px; margin-top: .28rem; }
+.privacy strong { font-weight: 600; color: var(--text); }
 
 .site-footer {
   text-align: center;

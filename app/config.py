@@ -21,7 +21,11 @@ class Settings:
     quota_db_path: str
     quota_salt: str
     trust_proxy_headers: bool
-    admin_token: str  # 비어 있으면 관리자 모드 비활성
+    admin_token: str
+    max_llm_calls: int
+    llm_request_timeout: int
+    convert_concurrency: int
+    max_inflight_lint: int  # 비어 있으면 관리자 모드 비활성
 
 
 def load_settings() -> Settings:
@@ -36,4 +40,9 @@ def load_settings() -> Settings:
         quota_salt=os.environ.get("PLW_QUOTA_SALT", "plan-lint-web-v1"),
         trust_proxy_headers=os.environ.get("PLW_TRUST_PROXY_HEADERS", "1") == "1",
         admin_token=os.environ.get("PLW_ADMIN_TOKEN", ""),
+        # 요청당 LLM 호출 절대 상한 — 엔진 체커가 문서 헤딩 수만큼 호출하므로 필수
+        max_llm_calls=int(os.environ.get("PLW_MAX_LLM_CALLS", "24")),
+        llm_request_timeout=int(os.environ.get("PLW_LLM_REQUEST_TIMEOUT", "25")),
+        convert_concurrency=int(os.environ.get("PLW_CONVERT_CONCURRENCY", "2")),
+        max_inflight_lint=int(os.environ.get("PLW_MAX_INFLIGHT_LINT", "8")),
     )
