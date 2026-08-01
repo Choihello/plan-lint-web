@@ -193,7 +193,10 @@ async def _lint_inner(request: Request, file, text, use_llm: bool):
             try:
                 # 요청당 호출 예산 + SDK 타임아웃을 씌운다 (관리자도 예외 없음)
                 llm_client = BudgetPool(
-                    apply_request_timeout(make_client(), settings.llm_request_timeout),
+                    apply_request_timeout(
+                        make_client(model=settings.llm_model or None),
+                        settings.llm_request_timeout,
+                    ),
                     settings.max_llm_calls,
                 )
             except LLMUnavailable:

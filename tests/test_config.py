@@ -12,6 +12,17 @@ def test_defaults():
     assert s.trust_proxy_headers is True
 
 
+def test_llm_model_defaults_to_engine_default(monkeypatch):
+    monkeypatch.delenv("PLW_LLM_MODEL", raising=False)
+    # 빈 값 → make_client(model=None) → 엔진 기본 모델을 쓴다
+    assert load_settings().llm_model == ""
+
+
+def test_llm_model_override(monkeypatch):
+    monkeypatch.setenv("PLW_LLM_MODEL", "  some-model-id  ")
+    assert load_settings().llm_model == "some-model-id"  # 앞뒤 공백 제거
+
+
 def test_env_override(monkeypatch):
     monkeypatch.setenv("PLW_PER_IP_DAILY", "5")
     monkeypatch.setenv("PLW_GLOBAL_DAILY", "999")

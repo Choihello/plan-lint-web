@@ -23,6 +23,7 @@ class Settings:
     trust_proxy_headers: bool
     admin_token: str
     admin_daily: int
+    llm_model: str
     max_llm_calls: int
     llm_request_timeout: int
     convert_concurrency: int
@@ -43,6 +44,9 @@ def load_settings() -> Settings:
         admin_token=os.environ.get("PLW_ADMIN_TOKEN", ""),
         # 관리자 일일 상한 — 토큰 유출 시 무제한 유료 호출을 막는 최후 방어선
         admin_daily=int(os.environ.get("PLW_ADMIN_DAILY", "100")),
+        # 사용할 LLM 모델. 비우면 엔진 기본값(OpenAI: gpt-4.1)을 쓴다.
+        # 모델 교체를 코드 배포가 아니라 시크릿 변경만으로 하기 위해 환경변수로 뺀다.
+        llm_model=os.environ.get("PLW_LLM_MODEL", "").strip(),
         # 요청당 LLM 호출 절대 상한 — 엔진 체커가 문서 헤딩 수만큼 호출하므로 필수
         max_llm_calls=int(os.environ.get("PLW_MAX_LLM_CALLS", "24")),
         llm_request_timeout=int(os.environ.get("PLW_LLM_REQUEST_TIMEOUT", "25")),
